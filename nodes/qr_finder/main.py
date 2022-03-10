@@ -58,19 +58,19 @@ def takeoff():
     # cmd_vel.linear.z = 0
     # pub_vel.publish(cmd_vel)
 
-    # pub_takeoff.publish(takeoff_msg)
+    pub_takeoff.publish(takeoff_msg)
     rospy.sleep(1)
 
     cmd_vel.linear.y = 0
     cmd_vel.angular.z = 0
     cmd_vel.linear.z = 0.85
-    # pub_vel.publish(cmd_vel)
+    pub_vel.publish(cmd_vel)
     rospy.sleep(1)
 
     cmd_vel.linear.y = 0
     cmd_vel.angular.z = 0
     cmd_vel.linear.z = 0
-    # pub_vel.publish(cmd_vel)
+    pub_vel.publish(cmd_vel)
 
 
 def main():
@@ -88,7 +88,7 @@ def main():
         # image = cv2.resize(image, (480, 360))
 
         # image with detected qr code, the qr_code detected or not
-        frm, status = qr_finder.extract(image, True)  # qr code
+        frm, edged, status = qr_finder.extract(image, True)  # qr code
         # frm, status = qr_finder.extract(image)        # blue circle
 
         # update i value
@@ -115,7 +115,7 @@ def main():
                 if last_hover == 0:
                     last_hover = current_time
 
-                if (current_time-last_hover)/60.0 == 0.05:   # 6 seconds
+                if (current_time-last_hover)/60.0 > 0.16:   # 1 seconds. 0.05 = 3 seconds, 0.1 = 6 seconds
                     qr_data = qr_finder.qr_code_decoder(image)
                     rospy.loginfo(qr_data)
                     # stop the iterations then land
@@ -135,6 +135,7 @@ def main():
             # pass  # 3
 
         cv2.imshow('Output', frm)
+        cv2.imshow('Edged', edged)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 

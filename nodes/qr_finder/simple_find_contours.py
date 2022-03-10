@@ -3,6 +3,7 @@ from json.tool import main
 import math
 import cv2
 import numpy as np
+from pyzbar import pyzbar
 
 BLUR_VALUE = 3
 SQUARE_TOLERANCE = 0.15
@@ -22,6 +23,7 @@ def count_children(hierarchy, parent, inner=False):
         return count_children(hierarchy, hierarchy[parent][2], True)
     return 1 + count_children(hierarchy, hierarchy[parent][0], True) + count_children(hierarchy, hierarchy[parent][2],
                                                                                       True)
+
 
 def has_square_parent(hierarchy, squares, parent):
     if hierarchy[parent][3] == -1:
@@ -181,7 +183,7 @@ def get_error():
 
 def qr_code_decoder(img):
     qr_data = ''
-    qr_codes = qr.decode(img)
+    qr_codes = pyzbar.decode(img)
 
     for qr_code in qr_codes:
         qr_data = qr_code.data.decode('utf-8')
@@ -209,6 +211,7 @@ def extract(frame, debug=False):
     squares = []
     square_indices = []
 
+    count = 0
     i = 0
     detected = False # true if the contour get caught
     for c in contours:
@@ -226,27 +229,32 @@ def extract(frame, debug=False):
                     has_square_parent(hierarchy[0], square_indices, i) is False:
                 squares.append(approx)
                 square_indices.append(i)
+
+                count += 1
+                print('area ke {} : {}'.format(count, area))
         i += 1
 
     main_corners = []
     east_corners = []
     south_corners = []
-    rectangles = []
+    # rectangles = []
     # Determine if squares are QR codes
+
+    count = 0
     for square in squares:
         area = cv2.contourArea(square)
         center = get_center(square)
         peri = cv2.arcLength(square, True)  # keliling objek
 
         similar = []
-        tiny = []
+        # tiny = []
         for other in squares:
             if square[0][0][0] != other[0][0][0]:  # bentuk lain dari indeks di dalam kontur
                 # Determine if square is similar to other square within AREA_TOLERANCE
                 if math.fabs(area - cv2.contourArea(other)) / max(area, cv2.contourArea(other)) <= AREA_TOLERANCE:
                     similar.append(other)
-                elif peri / 4 / 2 > cv2.arcLength(other, True) / 4:
-                    tiny.append(other)
+                # elif peri / 4 / 2 > cv2.arcLength(other, True) / 4:
+                #     tiny.append(other)
 
                 # math.fabs -> selisih. area_tolerance -> 0.15
 
@@ -277,9 +285,9 @@ def extract(frame, debug=False):
                     east = distances_to_contours[closest_b]
                     south = distances_to_contours[closest_a]
 
-                midpoint = get_midpoint(get_center(east), get_center(south))
+                # midpoint = get_midpoint(get_center(east), get_center(south))
                 # Determine location of fourth corner
-                diagonal = peri / 4 * 1.41421
+                # diagonal = peri / 4 * 1.41421
 
                 # temporary
                 tx, ty = get_center(square)
@@ -294,12 +302,13 @@ def extract(frame, debug=False):
                 left, right, qr_center = get_box(east_box, south_box, east, south)
 
                 # Append rectangle, offsetting to farthest borders
-                rectangles.append([extend(midpoint, center, diagonal / 2, True),
-                                   extend(midpoint, get_center(distances_to_contours[closest_b]), diagonal / 2, True),
-                                   extend(midpoint, get_center(distances_to_contours[closest_a]), diagonal / 2, True)])
+                # rectangles.append([extend(midpoint, center, diagonal / 2, True),
+                #                    extend(midpoint, get_center(distances_to_contours[closest_b]), diagonal / 2, True),
+                #                    extend(midpoint, get_center(distances_to_contours[closest_a]), diagonal /2, True)])
                 east_corners.append(east)
                 south_corners.append(south)
                 main_corners.append(square)
+
                 # print a text
                 cv2.putText(output, "Main", main_box, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
                 cv2.putText(output, "East", east_box, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
@@ -324,11 +333,11 @@ def extract(frame, debug=False):
     if debug:
         # Draw debug information onto frame before outputting it
         cv2.drawContours(output, squares, -1, (255, 255, 255), 4)  # (5, 5, 5), 2)
-        cv2.drawContours(output, main_corners, -1, (0, 0, 128), 3)
-        cv2.drawContours(output, east_corners, -1, (0, 128, 0), 3)
-        cv2.drawContours(output, south_corners, -1, (128, 0, 0), 3)
+        # cv2.drawContours(output, main_corners, -1, (0, 0, 128), 3)
+        # cv2.drawContours(output, east_corners, -1, (0, 128, 0), 3)
+        # cv2.drawContours(output, south_corners, -1, (128, 0, 0), 3)
 
-    return output, detected
+    return output, edged, detected
 
 
 """
