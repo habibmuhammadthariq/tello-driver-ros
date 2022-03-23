@@ -9,7 +9,7 @@ def main():
     takeoff()
 
     rospy.loginfo('move forward')
-    cmd_vel.linear.y = 1    # 50 cm/s
+    cmd_vel.linear.y = 1    # cmd_vel.y = 1 and sleep = 2 mean that the drone will move 25 cm/s forward
     cmd_vel.angular.z = 0.0
     pub_vel.publish(cmd_vel)
     rospy.sleep(2)
