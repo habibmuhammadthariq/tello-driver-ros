@@ -21,9 +21,18 @@ pid_yaw = [0.005, 0, 0.08]
 pid_pitch = [0.005, 0, 0.05]
 pid_roll = [0.003, 0, 0.02]
 
+"""
+# for image record
+fps = 6
+resolution = (640, 480)
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+# name of this file output should be changed every time this program launched
+save = cv2.VideoWriter('videos/test.mp4', fourcc, fps, resolution)
+"""
+
 
 def set_command(direction, distance, error):
-    fb, lr = 0, 0
+    fb, lr, ud = 0, 0, 0
     #
     # speed = pid_yaw[0] * error + pid_yaw[2] * (error - pError)
     # speed = np.clip(speed, -1.0, 1.0)
@@ -37,6 +46,10 @@ def set_command(direction, distance, error):
     elif direction == 'right':
         lr = pid_roll[0] * error + pid_roll[2] * (error - pError_roll)
         lr = np.clip(lr, 0.2, 0.25)
+    elif direction == 'up':
+        ud = 1.5
+    elif direction == 'down':
+        ud = -1.5
     elif direction == 'forward':
         fb = pid_pitch[0] * error + pid_pitch[2] * (error - pError_pitch)
         fb = np.clip(fb, 0.2, 0.25)
@@ -50,23 +63,15 @@ def set_command(direction, distance, error):
         print('Detection failed -> Hover')  # temporary
         move()
     elif direction == 'left' or direction == 'right' or direction == 'forward' or direction == 'backward':
-        move(lr=lr, fb=fb)
+        move(lr=lr, fb=fb, ud=ud)
     else:
         move()
 
-    print('Distance : {}, y : {}, x : {}'.format(distance, cmd_vel.linear.y, cmd_vel.linear.x))
+    print('Distance : {}, y : {}, x : {}, z : {}'.format(distance, fb, lr, ud))
 
 
-count_img = 0
 def callback(msg):
-    # rospy.loginfo('frame: %d bytes' % len(msg.data))
-    if count_img < 5:
-        count_img += 1
-    else:
-        stream.add_frame(msg.data)
-        count_img -= 5
-
-    print('Image ke : {}'.format(count_img))
+    stream.add_frame(msg.data)
 
 
 def takeoff():
@@ -75,18 +80,10 @@ def takeoff():
     pub_takeoff.publish(takeoff_msg)
     rospy.sleep(1)
 
-    move(ud=1.2)
-    rospy.sleep(1)
+    # move(ud=1.1)
+    # rospy.sleep(1)
 
     move()
-
-
-# def move_forward():
-#     cmd_vel.angular.z = 0
-#     cmd_vel.linear.y = 0
-#     cmd_vel.linear.z = 1.2
-#     pub_vel.publish(cmd_vel)
-#     rospy.sleep(1)
 
 
 def move(lr=0, fb=0, ud=0):
@@ -102,7 +99,6 @@ def main():
     pDirection, pDistance = '', 0.0
     pError_roll, pError_pitch = 0.0, 0.0
     count_direction = 0
-
     #
     container = av.open(stream)
     rospy.loginfo('main: opened')
@@ -114,22 +110,22 @@ def main():
 
         # update i value
         i += 1
-        if i % 100 == 0 and i <= 1000:
+        if i % 100 == 0 and i <= 400:#1000:
             print('Iterasi ke : {}'.format(i))
-        if 901 < i <= 902:
+        if 401 < i <= 402:
             takeoff()
             isTakingOff = True
 
         # image with detected qr code, the qr_code detected or not
         # frm, edged, status = qr_finder.extract(image, True)  # qr code
         if isTakingOff:
-            # if j < 5:
-            #     j += 1
-            #     continue
-            # else:
-            image = cv2.cvtColor(np.array(frame.to_image()), cv2.COLOR_RGB2BGR)
-            image = cv2.resize(image, (640, 480))
-            frm, status = qr_finder.extract(image, True)
+            if j < 5:
+                j += 1
+                continue
+            else:
+                image = cv2.cvtColor(np.array(frame.to_image()), cv2.COLOR_RGB2BGR)
+                image = cv2.resize(image, (640, 480))
+                frm, status = qr_finder.extract(image, True)
         else:
             continue
 
@@ -139,6 +135,7 @@ def main():
             # error = qr_finder.get_error()
 
             # direction for the drone to come into qr code.
+
             direction, distance, error = qr_finder.get_direction()
             print(direction)  # temporary
 
@@ -169,6 +166,8 @@ def main():
             # print('p error roll : {}, p error pitch : {}, p error distance : {}, p error direction : {}'.
             #       format(pError_roll, pError_pitch, pDistance, pDirection))
         else:
+            move()
+            """
             if qr_has_found:
                 if pDirection == 'left':
                     if count_direction < 20:
@@ -190,7 +189,7 @@ def main():
                     count_direction += 1
 
                     # =========================================
-                elif not qr_has_found:
+            elif not qr_has_found:
                     # assumption
                     # the drone was 3 m from the qr code. And we want the drone go forward until 1.5 m from the qr code
                     # global start, forward, left, right, up, down
@@ -208,7 +207,7 @@ def main():
                     rospy.loginfo('Hover')
                     move()
             # pass  # 3
-
+            """
         j = 0
 
         cv2.imshow('Output', frm)
