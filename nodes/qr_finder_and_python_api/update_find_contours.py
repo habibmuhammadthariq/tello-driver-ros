@@ -95,48 +95,42 @@ def distance_to_camera():
 def get_direction():  # this function need both image_center and qr_center
     direction = ""
     error = 0
+    up = qr_center[1] < image_height // 3
+    down = qr_center[1] > image_height * 2 / 3
     # get distance between drone with the qr code
     distance = distance_to_camera()
     # print("distance : %s" % distance)
 
-    # up and down
-    # if image_center[1] > (qr_center[1] + 50):
-    #     direction = "up"
-    # elif image_center[1] < (qr_center[1] - 50):
-    #     direction = "down"
+    # hover
+    if 60 > distance > 50:
+        direction = 'hover'
+        error = math.fabs(qr_center[1]-image_center[1])
 
     # left and right
-    if qr_center[0] < image_width // 3:
+    elif qr_center[0] < image_width // 3:
         direction = 'left'
         error = qr_center[0] - image_center[0]
     elif qr_center[0] > image_width * 2 / 3:
         direction = 'right'
         error = qr_center[0] - image_center[0]
+
+    # up and down
+    elif distance < 120 and up or down:
+        if up:
+            direction = "up"
+            error = qr_center[1] - image_center[1]
+        elif down:
+            direction = "down"
+            error = qr_center[1] - image_center[1]
+
     # forward and backward
-    # if 60 > distance > 50:        # without up and down
-    elif 60 > distance > 50:
-        direction = 'hover'
-        error = 0
     elif distance > 60:
         direction = 'forward'
         error = distance - 50
     elif distance < 50:
         direction = 'backward'
         error = distance - 60
-    """
-    # forward and backward
-    if 45 > distance > 35:        # without up and down
-        direction = "hover"
-    elif distance > 45:
-        direction = "forward"
-    elif distance < 35:
-        direction = "backward"
-    """
-    # print the direction and distance on the frame
-    cv2.putText(output, "distance : {}".format(distance), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 1,
-                cv2.LINE_AA)
-    cv2.putText(output, "direction : {}".format(direction), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 1,
-                cv2.LINE_AA)
+
     return direction, distance, error
 
 

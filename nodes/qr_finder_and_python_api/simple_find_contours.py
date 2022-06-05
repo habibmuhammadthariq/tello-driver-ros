@@ -132,10 +132,10 @@ def get_direction():  # this function need both image_center and qr_center
         error = distance - 60
 
     # print the direction and distance on the frame
-    cv2.putText(output, "distance : {}".format(distance), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 1,
-                cv2.LINE_AA)
-    cv2.putText(output, "direction : {}".format(direction), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 1,
-                cv2.LINE_AA)
+    # cv2.putText(output, "distance : {}".format(distance), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 1,
+    #             cv2.LINE_AA)
+    # cv2.putText(output, "direction : {}".format(direction), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 1,
+    #             cv2.LINE_AA)
     return direction, distance, error
 
 

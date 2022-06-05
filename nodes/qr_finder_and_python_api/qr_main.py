@@ -11,8 +11,9 @@ from std_msgs.msg import Empty
 from sensor_msgs.msg import CompressedImage
 
 from video_stream_modul import StandaloneVideoStream
-# import update_find_contours as qr_finder
-import simple_find_contours as qr_finder
+
+import update_find_contours as qr_finder
+# import simple_find_contours as qr_finder
 
 stream = StandaloneVideoStream()
 
@@ -47,9 +48,9 @@ def set_command(direction, distance, error):
         lr = pid_roll[0] * error + pid_roll[2] * (error - pError_roll)
         lr = np.clip(lr, 0.2, 0.25)
     elif direction == 'up':
-        ud = 1.5
+        ud = 10
     elif direction == 'down':
-        ud = -1.5
+        ud = -2
     elif direction == 'forward':
         fb = pid_pitch[0] * error + pid_pitch[2] * (error - pError_pitch)
         fb = np.clip(fb, 0.2, 0.25)
@@ -105,15 +106,16 @@ def main():
 
     i, j = 0, 0
     isTakingOff, qr_has_found = False, False
+    up, down = False, False
     for frame in container.decode(video=0):
         # image = cv2.resize(image, (360, 240))
 
         # update i value
         i += 1
-        if i % 100 == 0 and i <= 400:#1000:
+        if i % 100 == 0 and i <= 400:  # 1000:
             print('Iterasi ke : {}'.format(i))
         if 401 < i <= 402:
-            takeoff()
+            takeoff()  # ====== 1 =====
             isTakingOff = True
 
         # image with detected qr code, the qr_code detected or not
@@ -135,9 +137,21 @@ def main():
             # error = qr_finder.get_error()
 
             # direction for the drone to come into qr code.
-
             direction, distance, error = qr_finder.get_direction()
             print(direction)  # temporary
+
+            # print the direction and distance on the frame
+            cv2.putText(frm, "distance : {}".format(distance), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                        (0, 255, 255), 1,
+                        cv2.LINE_AA)
+            cv2.putText(frm, "direction : {}".format(direction), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                        (0, 255, 255), 1,
+                        cv2.LINE_AA)
+
+            if direction == 'up':
+                up = True
+            elif direction == 'down':
+                down = True
 
             if direction == 'hover':
                 rospy.loginfo('Drone going to hover and decode the qr code')
@@ -150,6 +164,14 @@ def main():
                 # stop looping
                 break
             else:
+                # length of every square was 160. and 2/3 of it is around 100
+                if up and error > 100:
+                    direction = 'up'
+                elif down and error > 100:
+                    direction = 'down'
+                else:
+                    up, down = False, False
+
                 # set command
                 set_command(direction, distance, error)
 

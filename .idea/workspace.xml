@@ -5,10 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="3001a781-3dc5-4f70-811f-ed2a6d7242fe" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/nodes/qr_finder/update_find_contours.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/nodes/qr_finder/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/nodes/qr_finder/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/nodes/qr_finder_and_python_api/qr_main.py" beforeDir="false" afterPath="$PROJECT_DIR$/nodes/qr_finder_and_python_api/qr_main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/nodes/qr_finder_and_python_api/simple_find_contours.py" beforeDir="false" afterPath="$PROJECT_DIR$/nodes/qr_finder_and_python_api/simple_find_contours.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/nodes/qr_finder_and_python_api/update_find_contours.py" beforeDir="false" afterPath="$PROJECT_DIR$/nodes/qr_finder_and_python_api/update_find_contours.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
