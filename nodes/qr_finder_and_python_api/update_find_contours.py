@@ -114,14 +114,14 @@ def get_direction():  # this function need both image_center and qr_center
         direction = 'right'
         error = qr_center[0] - image_center[0]
 
-    # up and down
-    elif distance < 120 and up or down:
-        if up:
-            direction = "up"
-            error = qr_center[1] - image_center[1]
-        elif down:
-            direction = "down"
-            error = qr_center[1] - image_center[1]
+    # # up and down
+    # elif distance < 120 and up or down:
+    #     if up:
+    #         direction = "up"
+    #         error = qr_center[1] - image_center[1]
+    #     elif down:
+    #         direction = "down"
+    #         error = qr_center[1] - image_center[1]
 
     # forward and backward
     elif distance > 60:

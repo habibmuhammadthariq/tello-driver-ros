@@ -105,18 +105,21 @@ def main():
     rospy.loginfo('main: opened')
 
     i, j = 0, 0
-    isTakingOff, qr_has_found = False, False
+    isTakingOff, qr_has_been_found = False, False
     up, down = False, False
+    start = 0
     for frame in container.decode(video=0):
         # image = cv2.resize(image, (360, 240))
 
         # update i value
         i += 1
-        if i % 100 == 0 and i <= 400:  # 1000:
+        if i % 50 == 0 and i <= 300:  # 400:
             print('Iterasi ke : {}'.format(i))
         if 401 < i <= 402:
             takeoff()  # ====== 1 =====
             isTakingOff = True
+            start = rospy.get_rostime().secs
+
 
         # image with detected qr code, the qr_code detected or not
         # frm, edged, status = qr_finder.extract(image, True)  # qr code
@@ -132,7 +135,7 @@ def main():
             continue
 
         if status:
-            qr_has_found = True
+            qr_has_been_found = True
             # getting error between qr center with frame center
             # error = qr_finder.get_error()
 
@@ -188,14 +191,19 @@ def main():
             # print('p error roll : {}, p error pitch : {}, p error distance : {}, p error direction : {}'.
             #       format(pError_roll, pError_pitch, pDistance, pDirection))
         else:
-            move()
+            if not qr_has_been_found:
+                now = rospy.get_rostime().secs
+                if (now-start)/60.0 == 0.25: # 15 seconds
+                    break
+            else:
+                move()
             """
             if qr_has_found:
                 if pDirection == 'left':
                     if count_direction < 20:
                         rospy.loginfo('Move Right')
                         move(lr=0.25)
-                    elif 10 <= count_direction < 40:
+                    elif 20 <= count_direction < 40:
                         rospy.loginfo('Move Left')
                         move(lr=-0.25)
 
