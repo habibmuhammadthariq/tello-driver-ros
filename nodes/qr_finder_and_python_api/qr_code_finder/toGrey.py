@@ -7,8 +7,10 @@ import numpy as np
 
 stream = StandaloneVideoStream()
 
+
 def callback(msg):
     stream.add_frame(msg.data)
+
 
 def main():
     container = av.open(stream)
@@ -20,8 +22,9 @@ def main():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
+
 if __name__ == '__main__':
-    rospy.init_node('to_grey');
+    rospy.init_node('to_grey')
     rospy.Subscriber("/tello/image_raw/h264", CompressedImage, callback)
 
     try:
