@@ -7,6 +7,7 @@ class StandaloneVideoStream(object):
         self.cond = threading.Condition()
         self.queue = []
         self.closed = False
+        self.count_frame = 0
 
     def read(self, size):
         self.cond.acquire()
@@ -32,7 +33,10 @@ class StandaloneVideoStream(object):
         self.cond.release()
 
     def add_frame(self, buf):
-        self.cond.acquire()
-        self.queue.append(buf)
-        self.cond.notifyAll()
-        self.cond.release()
+        if self.count_frame < 12:
+            self.count_frame += 1
+        else:
+            self.cond.acquire()
+            self.queue.append(buf)
+            self.cond.notifyAll()
+            self.cond.release()

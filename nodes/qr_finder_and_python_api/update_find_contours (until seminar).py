@@ -12,6 +12,10 @@ WARP_DIM = 300
 SMALL_DIM = 29
 
 
+# global variable
+# global qr_center, image_center
+
+
 def count_children(hierarchy, parent, inner=False):
     if parent == -1:
         return 0
@@ -31,7 +35,7 @@ def has_square_parent(hierarchy, squares, parent):
 
 def get_center(c):
     m = cv2.moments(c)
-    if m["m00"] == 0: m["m00", "m01"] = 1
+    # if m["m00"] == 0: m["m00", "m01"] = 1
     return [int(m["m10"] / m["m00"]), int(m["m01"] / m["m00"])]
 
 
@@ -91,34 +95,33 @@ def distance_to_camera():
 def get_direction():  # this function need both image_center and qr_center
     direction = ""
     error = 0
+    up = qr_center[1] < image_height // 3
+    down = qr_center[1] > image_height * 2 / 3
     # get distance between drone with the qr code
     distance = distance_to_camera()
     # print("distance : %s" % distance)
 
-    # defined up and down condition
-    up = qr_center[1] < image_height // 3
-    down = qr_center[1] > image_height * 2 / 3
     # hover         ? am i have to move this block code down
     if 60 > distance > 50:
         direction = 'hover'
-        error = math.fabs(qr_center[1] - image_center[1])  # previously : 0
+        error = math.fabs(qr_center[1]-image_center[1]) # previously : 0
 
     # left and right
-    elif qr_center[0] < image_width // 3 + 20:
+    elif qr_center[0] < image_width // 3:
         direction = 'left'
         error = qr_center[0] - image_center[0]
-    elif qr_center[0] > image_width * 2 / 3 - 20:
+    elif qr_center[0] > image_width * 2 / 3:
         direction = 'right'
         error = qr_center[0] - image_center[0]
 
-    # up and down
-    elif distance < 120 and up or down:
-        if up:
-            direction = "up"
-            error = qr_center[1] - image_center[1]
-        elif down:
-            direction = "down"
-            error = qr_center[1] - image_center[1]
+    # # up and down
+    # elif distance < 120 and up or down:
+    #     if up:
+    #         direction = "up"
+    #         error = qr_center[1] - image_center[1]
+    #     elif down:
+    #         direction = "down"
+    #         error = qr_center[1] - image_center[1]
 
     # forward and backward
     elif distance > 60:
@@ -170,11 +173,11 @@ def extract(frame, debug=False):
 
     # Remove noise and unnecessary contours from frame
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    # gray = cv2.bilateralFilter(gray, 11, 17, 17)
-    # gray = cv2.GaussianBlur(gray, (BLUR_VALUE, BLUR_VALUE), 0)
+    gray = cv2.bilateralFilter(gray, 11, 17, 17)
+    gray = cv2.GaussianBlur(gray, (BLUR_VALUE, BLUR_VALUE), 0)
     edged = cv2.Canny(gray, 30, 200)
 
-    contours, hierarchy = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    _, contours, hierarchy = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     squares = []
     square_indices = []
@@ -189,14 +192,15 @@ def extract(frame, debug=False):
         approx = cv2.approxPolyDP(c, 0.03 * peri, True)
 
         # Find all quadrilateral contours
-        if len(approx) == 4:  # douglas peucker
+        if len(approx) == 4:
             # Determine if quadrilateral is a square to within SQUARE_TOLERANCE
             if area > 25 and \
-                    count_children(hierarchy[0], i) >= 2 and \
                     1 - SQUARE_TOLERANCE < math.fabs((peri / 4) ** 2) / area < 1 + SQUARE_TOLERANCE and \
-                    has_square_parent(hierarchy[0], square_indices, i) is False:  # seleksi berdasarkan hirarki
+                    count_children(hierarchy[0], i) >= 2 and \
+                    has_square_parent(hierarchy[0], square_indices, i) is False:
                 squares.append(approx)
                 square_indices.append(i)
+
         i += 1
     # print('Jumlah contour yang ditemukan : {}'.format(len(squares)))
     # Determine if squares are QR codes
@@ -209,18 +213,17 @@ def extract(frame, debug=False):
         # temporary
         # count = 1
         # print('area ke {} : {}'.format(count, area))
-        # Ngefilter square yg memiliki luas yg sama
+        # bagian perulangan ini bisa di buang sebenarnya. karena hanya ngecek luas squarenya lebih dari area toleransi ga nih.
         for other in squares:
             if square[0][0][0] != other[0][0][0]:  # bentuk lain dari indeks di dalam kontur
                 # temporary
                 # count += 1
                 # print('area ke {} : {}'.format(count, cv2.contourArea(other)))
                 # Determine if square is similar to other square within AREA_TOLERANCE
-                if math.fabs(area - cv2.contourArea(other)) / max(area, cv2.contourArea(
-                        other)) <= AREA_TOLERANCE:  # ukurannya sama
+                if math.fabs(area - cv2.contourArea(other)) / max(area, cv2.contourArea(other)) <= AREA_TOLERANCE:
                     similar.append(other)
 
-        if len(similar) >= 2:  # previous
+        if len(similar) >= 2:
             distances = []
             distances_to_contours = {}
             for sim in similar:
@@ -252,8 +255,7 @@ def extract(frame, debug=False):
                     contour_width = math.fabs(left[0] - right[0])
                     # mark qr code center
                     cv2.circle(output, qr_center, 5, (255, 255, 255), cv2.FILLED)
-                    cv2.putText(output, 'Center', (qr_center[0] - 25, qr_center[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                                (0, 255, 255), 1, cv2.LINE_AA)
+                    cv2.putText(output, 'Center', (qr_center[0]-25, qr_center[1]+20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
                     # draw line outside qr code
                     cv2.rectangle(output, left, right, (255, 255, 255), 2)
 
