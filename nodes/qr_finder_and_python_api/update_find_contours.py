@@ -12,21 +12,21 @@ WARP_DIM = 300
 SMALL_DIM = 29
 
 
-def count_children(hierarchy, parent, inner=False):
-    if parent == -1:
+def count_children(hierarchy, child, inner=False):
+    if child == -1:
         return 0
     elif not inner:
-        return count_children(hierarchy, hierarchy[parent][2], True)
-    return 1 + count_children(hierarchy, hierarchy[parent][0], True) + count_children(hierarchy, hierarchy[parent][2],
+        return count_children(hierarchy, hierarchy[child][2], True)
+    return 1 + count_children(hierarchy, hierarchy[child][0], True) + count_children(hierarchy, hierarchy[child][2],
                                                                                       True)
 
 
-def has_square_parent(hierarchy, squares, parent):
-    if hierarchy[parent][3] == -1:
+def has_square_parent(hierarchy, squares, indices):
+    if hierarchy[indices][3] == -1:
         return False
-    if hierarchy[parent][3] in squares:
+    if hierarchy[indices][3] in squares:
         return True
-    return has_square_parent(hierarchy, squares, hierarchy[parent][3])
+    return has_square_parent(hierarchy, squares, hierarchy[indices][3])
 
 
 def get_center(c):
@@ -61,11 +61,11 @@ def get_box(contour1, contour2):  # east_box, south_box, east, south
     if center1[0] < center2[0] and center1[1] > center2[1]:
         left = center1[0] - peri1, center1[1] + peri1
         right = center2[0] + peri2, center2[1] - peri2
-        print('Opsi 1')
+        # print('Opsi 1')
     else:
         left = center2[0] - peri2, center2[1] + peri2
         right = center1[0] + peri1, center1[1] - peri1
-        print('Opsi 2')
+        # print('Opsi 2')
     qr_cntr = int(left[0] + math.fabs(right[0] - left[0]) / 2), int(left[1] - math.fabs(left[1] - right[1]) / 2)
 
     return [left, right, qr_cntr]
@@ -89,7 +89,7 @@ def distance_to_camera():
 
 
 def get_direction():  # this function need both image_center and qr_center
-    direction = ""
+    direction, qr_position = "", ""
     error = 0
     # get distance between drone with the qr code
     distance = distance_to_camera()
@@ -99,36 +99,43 @@ def get_direction():  # this function need both image_center and qr_center
     up = qr_center[1] < image_height // 3
     down = qr_center[1] > image_height * 2 / 3
     # hover         ? am i have to move this block code down
-    if 60 > distance > 50:
+    if 60 > distance > 50:                              # i thought, i need to move this down. on the last else
+        qr_position = 'tengah'
         direction = 'hover'
         error = math.fabs(qr_center[1] - image_center[1])  # previously : 0
 
     # left and right
     elif qr_center[0] < image_width // 3 + 20:
+        qr_position = 'left'
         direction = 'left'
         error = qr_center[0] - image_center[0]
     elif qr_center[0] > image_width * 2 / 3 - 20:
+        qr_position = 'right'
         direction = 'right'
         error = qr_center[0] - image_center[0]
 
     # up and down
-    elif distance < 120 and up or down:
+    elif distance < 200 and up or down:
         if up:
+            qr_position = 'up'
             direction = "up"
             error = qr_center[1] - image_center[1]
         elif down:
+            qr_position = 'down'
             direction = "down"
             error = qr_center[1] - image_center[1]
 
     # forward and backward
     elif distance > 60:
+        qr_position = 'tengah'
         direction = 'forward'
         error = distance - 50
     elif distance < 50:
+        qr_position = 'tengah'
         direction = 'backward'
         error = distance - 60
 
-    return direction, distance, error
+    return qr_position, direction, distance, error
 
 
 def get_error():
@@ -175,12 +182,15 @@ def extract(frame, debug=False):
     edged = cv2.Canny(gray, 30, 200)
 
     contours, hierarchy = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
+    """
+    hierarchy indices -> [next contour, prev contour, first child contour, parent contour]
+    if the value of those indices are -1 then it means there is no next contour, prev contour, child or parent.
+    """
     squares = []
     square_indices = []
 
     # count = 0
-    i = 0
+    i = 0 # number contour with contour indices is similar. That's we use this variable
     detected = False  # true if the contour get caught
     for c in contours:
         # Approximate the contour
@@ -190,9 +200,9 @@ def extract(frame, debug=False):
 
         # Find all quadrilateral contours
         if len(approx) == 4:  # douglas peucker
-            # Determine if quadrilateral is a square to within SQUARE_TOLERANCE
+            # Determine if quadrilateral is a square to within SQUARE_TOLERANCE. # prev - count_children >= 2
             if area > 25 and \
-                    count_children(hierarchy[0], i) >= 2 and \
+                    count_children(hierarchy[0], i) >= 3 and \
                     1 - SQUARE_TOLERANCE < math.fabs((peri / 4) ** 2) / area < 1 + SQUARE_TOLERANCE and \
                     has_square_parent(hierarchy[0], square_indices, i) is False:  # seleksi berdasarkan hirarki
                 squares.append(approx)
@@ -240,8 +250,8 @@ def extract(frame, debug=False):
                                                          True) * 2.5 and temp <= 50:  # temp / max(closest_a, closest_b) <= DISTANCE_TOLERANCE: #
                 P = math.atan2(min(closest_a, closest_b), max(closest_a, closest_b))
                 angle = math.degrees(P)
-                print('Nilai tangen\t: {}'.format(P))  # temporary
-                print('Nilai sudut\t: {}'.format(angle))  # temporary
+                # print('Nilai tangen\t: {}'.format(P))  # temporary
+                # print('Nilai sudut\t: {}'.format(angle))  # temporary
 
                 global qr_center, contour_width
                 if 40 < angle < 50:
