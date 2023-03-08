@@ -80,7 +80,7 @@ def distance_to_camera():
 
     # initialize focal length
     # focal_length = 670.8860759493671  # laptop camera
-    focal_length = 631.3131313131313  # tello camera
+    focal_length = 810   # 631.3131313131313 #(640x480)  # tello camera
 
     # initialize the real known width
     known_width = 19.8  # cm
@@ -219,7 +219,7 @@ def extract(frame, debug=False):
         # temporary
         # count = 1
         # print('area ke {} : {}'.format(count, area))
-        # Ngefilter square yg memiliki luas yg sama
+        # Filtering same size square (size = luas)
         for other in squares:
             if square[0][0][0] != other[0][0][0]:  # bentuk lain dari indeks di dalam kontur
                 # temporary
@@ -254,7 +254,7 @@ def extract(frame, debug=False):
                 # print('Nilai sudut\t: {}'.format(angle))  # temporary
 
                 global qr_center, contour_width
-                if 40 < angle < 50:
+                if (40 < angle < 50) or (85 < angle < 95):
                     detected = True
                     # detail qr code
                     (left, right, qr_center) = get_box(distances_to_contours[closest_a],

@@ -14,6 +14,8 @@ from video_stream_modul import StandaloneVideoStream
 
 import update_find_contours as qr_finder
 
+from datetime import  datetime
+
 # import simple_find_contours as qr_finder
 
 stream = StandaloneVideoStream()
@@ -88,10 +90,11 @@ def takeoff():
     move()
 
 
-def move(lr=0, fb=0, ud=0):
+def move(lr=0, fb=0, ud=0, rotate=0):
     cmd_vel.linear.y = fb
     cmd_vel.linear.x = lr
     cmd_vel.linear.z = ud
+    cmd_vel.angular.z = rotate
     pub_vel.publish(cmd_vel)
 
 
@@ -108,6 +111,32 @@ def find_missing_qrcode(count_direction, first, seconds, pDirection='hover', lr=
             move(lr * seconds, fb * seconds, ud * seconds)
 
 
+def missing_function(pDirection, count_direction, direction):
+    if pDirection == 'left':
+        find_missing_qrcode(count_direction, -1, 1, lr=0.25)  # left 20 times then right 20 times
+        direction = 'right'
+    elif pDirection == 'right':
+        find_missing_qrcode(count_direction, 1, -1, lr=0.25)
+        direction = 'left'
+    elif pDirection == 'up':  # need to adjust up and down value, because it's different
+        find_missing_qrcode(count_direction, 1, -1, pDirection, ud=0.8)  # up 20 times then down 20 times
+        direction = 'down'
+    elif pDirection == 'down':
+        find_missing_qrcode(count_direction, -1, 1, pDirection, ud=0.4)
+        direction = 'up'
+    elif pDirection == 'forward':  # backward 20 times then forward 20 times
+        find_missing_qrcode(count_direction, -1, 1, fb=0.3)
+        direction = 'backward'
+    elif pDirection == 'backward':
+        find_missing_qrcode(count_direction, 1, -1, fb=0.3)
+        direction = 'forward'
+    return direction
+
+
+# def find_function():
+#     return ''
+
+
 def main():
     # previous
     global pError_roll, pError_pitch, pDistance, pDirection, count_direction
@@ -118,7 +147,7 @@ def main():
     rospy.loginfo('main: opened')
 
     i = 0  # ,  j = 0, 0
-    count_direction, count_missing_qr_code = 0, 0
+    count_direction, count_missing_qr_code, count_rotate = 0, 0, 0
     direction = ''
     # up, down = False, False
     hasTakenoff, ever_found, just_take_off, hover_for_a_while = False, False, False, False
@@ -131,7 +160,7 @@ def main():
         # if i % 50 == 0 and i <= 300:  # 400:
         #     print('Iterasi ke : {}'.format(i))
         if 401 < i <= 402:
-            # takeoff()                  # ====== takeoff command =====
+            takeoff()                  # ====== takeoff command =====
             hasTakenoff, just_take_off = True, True
 
         # image with detected qr code, the qr_code detected or not
@@ -140,30 +169,32 @@ def main():
             #     j += 1
             #     continue
             # else:
+            start_image_processing = datetime.now()
             image = cv2.cvtColor(np.array(frame.to_image()), cv2.COLOR_RGB2BGR)
-            rospy.loginfo("actual dimension of this image are {}".format(image.shape))
-            image = cv2.resize(image, (640, 480))
+            # rospy.loginfo("actual dimension of this image are {}".format(image.shape))
+            # image = cv2.resize(image, (640, 480))
             frm, found = qr_finder.extract(image, True)
+            # temp
+            diff = (datetime.now() - start_image_processing).microseconds / 1000
+            # if found:     # calculate duration
+            #     rospy.loginfo("duration : {} milliseconds".format(diff))
         else:
             continue
 
         if found:
             ever_found, just_take_off, hover_for_a_while = True, False, False
-            count_missing_qr_code = 0
-            # getting error between qr center with frame center
-            # error = qr_finder.get_error()
 
             # direction for the drone to come into qr code.
             qr_position, direction, distance, error = qr_finder.get_direction()
             # print(direction)  # temporary
 
             # print the direction and distance on the frame
-            # cv2.putText(frm, "distance : {}".format(distance), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
-            #             (0, 255, 255), 1,
-            #             cv2.LINE_AA)
-            cv2.putText(frm, "qr position : {}".format(qr_position), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+            cv2.putText(frm, "distance : {}".format(distance), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
                         (0, 255, 255), 1,
                         cv2.LINE_AA)
+            # cv2.putText(frm, "qr position : {}".format(qr_position), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+            #             (0, 255, 255), 1,
+            #             cv2.LINE_AA)
             cv2.putText(frm, "direction : {}".format(direction), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
                         (0, 255, 255), 1,
                         cv2.LINE_AA)
@@ -195,6 +226,8 @@ def main():
             pDistance = distance
             pDirection = direction
             count_direction = 0
+            count_missing_qr_code = 0
+            count_rotate = 0
 
             # print('p error roll : {}, p error pitch : {}, p error distance : {}, p error direction : {}'.
             #       format(pError_roll, pError_pitch, pDistance, pDirection))
@@ -203,18 +236,18 @@ def main():
                 move()
                 count_missing_qr_code += 1
                 continue
+
             # """
             # rospy.logwarn("Where's qr code")  # temporary
             if hover_for_a_while:
-                # rospy.logwarn("Time to hover")  # temporary
-                # let the drone hover while finding qr code till 15 secs.
-                # If not found. then land
+                # let the drone hover while finding qr code till 15 secs. If not found. then land
                 move()
                 direction = 'hover'
                 now = rospy.get_rostime().secs
                 if (now - start) / 60.0 == 0.25:  # 15 seconds
                     rospy.loginfo("Mission Failed!")
                     break
+
             elif ever_found:  # qr code lost
                 # rospy.logwarn("Find missing qr code")  # temporary
                 if pDirection == 'up' or pDirection == 'down' and count_direction == 80:
@@ -224,54 +257,27 @@ def main():
                     hover_for_a_while = True
                     start = rospy.get_rostime().secs
 
-                if pDirection == 'left':
-                    find_missing_qrcode(count_direction, -1, 1, lr=0.25)  # left 20 times then right 20 times
-                    direction = 'right'
-                elif pDirection == 'right':
-                    find_missing_qrcode(count_direction, 1, -1, lr=0.25)
-                    direction = 'left'
-                elif pDirection == 'up':  # need to adjust up and down value, because it's different
-                    find_missing_qrcode(count_direction, 1, -1, pDirection, ud=0.8)  # up 20 times then down 20 times
-                    direction = 'down'
-                elif pDirection == 'down':
-                    find_missing_qrcode(count_direction, -1, 1, pDirection, ud=0.4)
-                    direction = 'up'
-                elif pDirection == 'forward':  # backward 20 times then forward 20 times
-                    find_missing_qrcode(count_direction, -1, 1, fb=0.3)
-                    direction = 'backward'
-                elif pDirection == 'backward':
-                    find_missing_qrcode(count_direction, 1, -1, fb=0.3)
-                    direction = 'forward'
+                direction = missing_function(pDirection, count_direction, direction)
                 count_direction += 1
+
             elif just_take_off:
                 # rospy.logwarn("Start to find qr code {}".format(count_direction))  # temporary
-                if count_direction < 60:
-                    move(ud=0.8)
-                    direction = 'up'
-                elif count_direction < 260:
-                    move(fb=0.25)
-                    direction = 'forward'
-                elif count_direction < 800:       # right 200 times then left 400 times
-                    find_missing_qrcode(count_direction, 1, -1, lr=0.25)
-                    direction = 'right'
-                elif count_direction < 880:     # up            80 times   - final
-                    move(ud=0.8)
-                    direction = 'up'
-                elif count_direction < 1080:     # move right    200 times
-                    move(lr=0.25)
-                    direction = 'right'
-                elif count_direction < 1480:    # move left     400 times
-                    move(lr=-0.25)
-                    direction = 'left'
-                elif count_direction < 1640:     # down          160 times       down should 3 times higher from up
-                    move(ud=-0.4)
-                    direction = 'down'
-                # elif count_direction < 1520:    # up            80 times
-                #     move(ud=0.8)
-                elif count_direction == 1640:
+                if count_rotate == 0:
+                    rospy.sleep(3)
+
+                count_rotate += 1
+                if count_rotate < 150:
+                    move()
+                else :
+                    direction = 'kanan'
+                    move(rotate=0.4)  # important 640x480=0.6
+                    # need to change to be (-0.6) if the qr code position was in the left side of the drone
+
+                if count_rotate == 1430: # 640x480 = 790
                     hover_for_a_while = True
                     start = rospy.get_rostime().secs
                     count_direction = 0
+                    count_rotate = 0
 
                 count_direction += 1
             else:  # follow instruction by qr code      ---     next job
@@ -311,3 +317,34 @@ if __name__ == '__main__':
         pub_land.publish(land_msg)
         stream.close()
         cv2.destroyAllWindows()
+
+"""
+old find qr-code code
+if count_direction < 60:
+    move(ud=0.8)
+    direction = 'up'
+elif count_direction < 260:
+    move(fb=0.25)
+    direction = 'forward'
+elif count_direction < 800:  # right 200 times then left 400 times
+    find_missing_qrcode(count_direction, 1, -1, lr=0.25)
+    direction = 'right'
+elif count_direction < 880:  # up            80 times   - final
+    move(ud=0.8)
+    direction = 'up'
+elif count_direction < 1080:  # move right    200 times
+    move(lr=0.25)
+    direction = 'right'
+elif count_direction < 1480:  # move left     400 times
+    move(lr=-0.25)
+    direction = 'left'
+elif count_direction < 1640:  # down          160 times       down should 3 times higher from up
+    move(ud=-0.4)
+    direction = 'down'
+# elif count_direction < 1520:    # up            80 times
+#     move(ud=0.8)
+elif count_direction == 1640:
+    hover_for_a_while = True
+    start = rospy.get_rostime().secs
+    count_direction = 0
+"""
